@@ -8,6 +8,10 @@ from ..contracts.enums import (
     RULE_ANOMALY_CODE, AnomalyCode, BlockingMode, EnforcementPoint,
     EnforcementScope, RuleId, Severity,
 )
+from pathlib import Path
+import yaml
+from collections.abc import Mapping
+from importlib.resources import files
 
 _AGENT_POINTS = frozenset({
     EnforcementPoint.AGENT_VALIDATION, EnforcementPoint.AGENT_SCHEMA_MAPPING,
@@ -45,3 +49,35 @@ class RuleSpec(Contract):
         if self.blocking is not BlockingMode.NEVER and self.severity is not Severity.ERROR:
             raise ValueError(f"{self.rule_id}: blocking rules must be ERROR")
         return self
+    
+
+_DEFAULT_CONFIG = "rules.yaml"
+
+
+def load_specs(path: Path | None = None) -> dict[RuleId, RuleSpec]:
+    """Load and validate the spec set.
+
+    path=None reads the packaged rules.yaml. Passing a path is the Databricks
+    override: a workspace-local config can be loaded and handed to
+    verify_specs() before any rule runs against it.
+
+    Pure: reads one file, constructs models, no registry access.
+    """
+    if path is None:
+        raw = (files("migrateiq.validation") / _DEFAULT_CONFIG).read_text()
+    else:
+        raw = Path(path).read_text()
+
+    doc = yaml.safe_load(raw)
+    if not isinstance(doc, dict) or "rules" not in doc:
+        raise ValueError(f"rule config missing top-level 'rules' key: {path or _DEFAULT_CONFIG}")
+    if doc.get("version") != 1:
+        raise ValueError(f"unsupported rule config version: {doc.get('version')!r}")
+
+    out: dict[RuleId, RuleSpec] = {}
+    for entry in doc["rules"]:
+        spec = RuleSpec(**entry)
+        if spec.rule_id in out:
+            raise ValueError(f"{spec.rule_id} specced twice in {path or _DEFAULT_CONFIG}")
+        out[spec.rule_id] = spec
+    return out
