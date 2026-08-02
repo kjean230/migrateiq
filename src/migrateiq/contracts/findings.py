@@ -19,7 +19,7 @@ class DomainSlice(Contract):
 
 class Anomaly(Contract):
     code: AnomalyCode
-    record: RecordRef
+    record: RecordRef | None = None
     field: CanonicalField | None = None
     observed: str | None = None
     message: str
