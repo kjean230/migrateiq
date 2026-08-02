@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
-from pydantic import Field
+from pydantic import Field, model_validator
 from .base import Contract, Metric, RecordRef, SCHEMA_VERSION
 from .enums import AnomalyCode, CanonicalField, Domain
 
@@ -17,12 +17,25 @@ class DomainSlice(Contract):
     amount_billed_total: Decimal | None = None
     amount_paid_total: Decimal | None = None
 
+_AGGREGATE_CODES = frozenset({
+    AnomalyCode.RECONCILIATION_MISMATCH,
+    AnomalyCode.VOLUME_DRIFT,
+})
+
 class Anomaly(Contract):
     code: AnomalyCode
     record: RecordRef | None = None
     field: CanonicalField | None = None
     observed: str | None = None
     message: str
+    @model_validator(mode="after")
+    def _record_matches_code(self):
+        if self.code in _AGGREGATE_CODES:
+            if self.record is not None:
+                raise ValueError(f"{self.code} is aggregate; record must be None")
+        elif self.record is None:
+            raise ValueError(f"{self.code} is record-level; record is required")
+        return self
 
 class Findings(Contract):
     schema_version: Literal["1.0"] = SCHEMA_VERSION
