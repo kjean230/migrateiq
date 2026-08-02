@@ -1,0 +1,82 @@
+# Serialized RuleSpec set. §3.2, one entry per row.
+# anomaly_code is NOT configured here — it derives from rule_id via
+# RULE_ANOMALY_CODE so config cannot contradict the enum.
+# Contract sets extra="forbid": an unknown key raises at load.
+version: 1
+
+rules:
+  # ---- Record rules (EnforcementScope.AGENT) --------------------------------
+  - rule_id: DQ001_POLICY_ID_NOT_NULL
+    scope: agent
+    enforcement_point: agent_validation
+    severity: error
+    blocking: threshold
+    blocking_threshold: 0.01
+    description: >-
+      policy_id must be non-null on every record. Blocks output once more than
+      1% of records are affected.
+
+  - rule_id: DQ002_COVERAGE_PERIOD_PRESENT
+    scope: agent
+    enforcement_point: agent_validation
+    severity: warning
+    blocking: never
+    description: >-
+      termination_date must be present when policy_status is terminated.
+      Active policies are skipped; unknown status is not evaluable.
+
+  - rule_id: DQ003_EFFECTIVE_BEFORE_TERMINATION
+    scope: agent
+    enforcement_point: agent_validation
+    severity: warning
+    blocking: never
+    description: >-
+      effective_date must precede termination_date. Surfaced in the findings
+      summary, never blocks delivery.
+
+  - rule_id: DQ004_CLAIM_AMOUNT_NON_NEGATIVE
+    scope: agent
+    enforcement_point: agent_validation
+    severity: warning
+    blocking: never
+    description: >-
+      amount_billed and amount_paid must be non-negative. The anomaly is
+      attributed to the specific field, requiring a manual review note.
+
+  - rule_id: DQ005_COVERAGE_TYPE_KNOWN_DOMAIN
+    scope: agent
+    enforcement_point: agent_schema_mapping
+    severity: warning
+    blocking: never
+    description: >-
+      coverage_type must map to a known coverage domain. Values of mixed or
+      unknown are violations; affected rows are excluded from the breakdown.
+
+  - rule_id: DQ006_MEMBER_ID_ON_CLAIMS
+    scope: agent
+    enforcement_point: agent_validation
+    severity: warning
+    blocking: never
+    description: >-
+      member_id must be present on claim records. Not applicable to workbooks
+      containing no claim rows.
+
+  # ---- Reconciliation rules (EnforcementScope.UAT) --------------------------
+  - rule_id: DQ007_CHANGE_COUNTS_RECONCILE
+    scope: uat
+    enforcement_point: uat_gate
+    severity: error
+    blocking: always
+    description: >-
+      inserts + updates + soft_deletes must equal total records processed. A
+      missing change count fails closed. Any failure blocks delivery.
+
+  - rule_id: DQ008_RECORD_COUNT_TOLERANCE
+    scope: uat
+    enforcement_point: uat_gate
+    severity: error
+    blocking: always
+    tolerance: 0.001
+    description: >-
+      Output record count must match source within 0.1%. Drift inside
+      tolerance is a pass; any failure blocks delivery and logs to Delta Lake.

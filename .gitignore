@@ -33,3 +33,8 @@ htmlcov/
 .DS_Store
 .venv/
 *.egg-info/
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/

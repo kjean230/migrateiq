@@ -6,7 +6,22 @@ build-backend = "setuptools.build_meta"
 name = "migrateiq"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["pydantic>=2.7"]
+dependencies = [
+    "pydantic>=2.7",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "types-pyyaml",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"migrateiq.validation" = ["*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
